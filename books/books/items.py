@@ -9,6 +9,11 @@ import scrapy
 
 
 class BooksItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    title = scrapy.Field()
+    author = scrapy.Field()
+    published_year = scrapy.Field()
+    isbn = scrapy.Field()
+    age_range = scrapy.Field()
+    book_format = scrapy.Field()
+    current_price = scrapy.Field()
+    image = scrapy.Field()
