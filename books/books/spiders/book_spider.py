@@ -1,23 +1,25 @@
 from scrapy import Selector
-from scrapy.spiders import CrawlSpider
-from pyvirtualdisplay import Display
-
 from ..items import BooksItem
-from selenium import webdriver
+import scrapy
 
 
-class AboutRestSpider(CrawlSpider):
+class AboutRestSpider(scrapy.Spider):
     name = "books"
 
     allowed_domains = ["adlibris.com"]
 
-    start_urls = [
-        'http://www.adlibris.com/se/avdelning/bilderbocker-9510?id=9510&pn=0'
-    ]
+    start_urls = ['http://www.adlibris.com/se/avdelning/bilderbocker-9510?id=9510&pn=1']
 
     def parse(self, response):
         no_data = '-'
-        for each in response.selector.xpath('.//div[@class="section search results"]/ul').xpath('li'):
+        next_page = response.xpath('.//a[@class="btn btn--show-more-large next"]/@href').extract_first()
+        root = Selector(response)
+
+        if next_page:
+            next_page = response.urljoin(next_page)
+            yield scrapy.Request(next_page, callback=self.parse)
+
+        for each in root.xpath('.//div[@class="section search results"]/ul').xpath('li'):
             item = BooksItem()
             try:
                 item['title'] = each.xpath('.//h3/text()').extract_first().strip()
@@ -32,11 +34,12 @@ class AboutRestSpider(CrawlSpider):
             except:
                 item['published_year'] = no_data
             try:
-                item['isbn'] = each.xpath('.//div[@class="price-from"]/span').re_first(r'ISBN \d+')
+                item['isbn'] = each.xpath('.//div[@class="price-from"]/span').re_first(r'ISBN \d+').split()[1]
             except:
                 item['isbn'] = no_data
             try:
-                item['age_range'] = each.xpath('.//span[@itemprop="typicalAgeRange"]/text()').extract_first()
+                age_range = each.xpath('.//span[@itemprop="typicalAgeRange"]/text()').extract_first()
+                item['age_range'] = age_range if age_range else no_data
             except:
                 item['age_range'] = no_data
             try:
@@ -45,7 +48,13 @@ class AboutRestSpider(CrawlSpider):
                 item['book_format'] = no_data
             try:
                 current_price = each.xpath('.//div[@class="current-price"]/text()').extract_first()
+            except:
+                current_price = no_data
+            try:
                 currency = each.xpath('.//span[@class="currency"]/text()').extract_first()
+            except:
+                currency = ''
+            try:
                 item['current_price'] = '%s%s' % (current_price, currency)
             except:
                 item['current_price'] = no_data
@@ -55,25 +64,3 @@ class AboutRestSpider(CrawlSpider):
                 item['image'] = no_data
             yield item
 
-    # def __init__(self, *a, **kw):
-    #     super().__init__(*a, **kw)
-    #     self.display = Display(visible=0, size=(1024, 768))
-    #     self.display.start()
-    #     self.driver = webdriver.Firefox()
-
-    # def parse(self, response):
-    #     self.driver.get(response.url)
-    #     while True:
-    #         try:
-    #             next = self.driver.find_element_by_xpath(
-    #                 './/div[@class="ui_column is-3 language"]/ul/li/span[@class="toggle"]/input[@id="taplc_location_review_filter_controls_0_filterLang_ALL"]')
-    #             next.click()
-    #             selenium_response_text = self.driver.page_source
-    #             new_selector = Selector(text=selenium_response_text)
-    #             for each in new_selector.xpath('//div[@id="PAGE"]'):
-    #                     item['']
-    #                 yield item
-    #         except:
-    #             break
-    #     self.driver.close()
-    #     self.display.stop()
